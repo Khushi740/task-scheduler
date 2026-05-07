@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+  <a href="{{ url_for('dashboard') }}" class="back-link">← Back to Dashboard</a>
+  <h1>Task #{{ task.id }} — {{ task.name }}</h1>
+</div>
+
+{% if task %}
+<div class="detail-grid">
+
+  <div class="card">
+    <h2>Overview</h2>
+    <table class="detail-table">
+      <tr><td>Status</td>    <td><span class="badge {{ task.status }}">{{ task.status }}</span></td></tr>
+      <tr><td>Type</td>      <td><span class="badge type">{{ task.task_type }}</span></td></tr>
+      <tr><td>Action</td>    <td><span class="badge action">{{ task.action }}</span></td></tr>
+      <tr><td>Retries</td>   <td>{{ task.retry_count }} / {{ task.max_retries }}</td></tr>
+      <tr><td>Created</td>   <td>{{ task.created_at[:16] }}</td></tr>
+      <tr><td>Updated</td>   <td>{{ task.updated_at[:16] }}</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Schedule</h2>
+    <table class="detail-table">
+      <tr><td>Scheduled At</td>     <td>{{ task.scheduled_at[:16] if task.scheduled_at else "—" }}</td></tr>
+      <tr><td>Interval (s)</td>     <td>{{ task.interval_seconds or "—" }}</td></tr>
+      <tr><td>Cron Expression</td>  <td>{{ task.cron_expression or "—" }}</td></tr>
+      <tr><td>Webhook URL</td>      <td>{{ task.webhook_url or "—" }}</td></tr>
+    </table>
+  </div>
+
+  <div class="card full-width">
+    <h2>Payload</h2>
+    <pre class="code-block">{{ task.payload or "No payload" }}</pre>
+  </div>
+
+  <div class="card full-width">
+    <h2>Result</h2>
+    <pre class="code-block {{ 'error-text' if task.status == 'failed' else '' }}">{{ task.result or "Not yet executed" }}</pre>
+  </div>
+
+</div>
+
+{% if task.status not in ['cancelled', 'done'] %}
+<div class="danger-zone">
+  <h3>Danger Zone</h3>
+  <form method="POST" action="{{ url_for('cancel_task', task_id=task.id) }}">
+    <button type="submit" class="btn-danger" onclick="return confirm('Are you sure?')">Cancel This Task</button>
+  </form>
+</div>
+{% endif %}
+
+{% else %}
+<div class="card"><p>Task not found.</p></div>
+{% endif %}
+
+{% endblock %}
