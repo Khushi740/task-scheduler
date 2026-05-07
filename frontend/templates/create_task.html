@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Create New Task</h1>
+  <p>Schedule a background job to run automatically</p>
+</div>
+
+<div class="card form-card">
+  {% if error %}
+  <div class="alert error">{{ error }}</div>
+  {% endif %}
+
+  <form method="POST">
+
+    <div class="form-group">
+      <label>Task Name</label>
+      <input type="text" name="name" placeholder="e.g. Daily Report" required />
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Task Type</label>
+        <select name="task_type" id="task_type" onchange="toggleFields()">
+          <option value="one_time">One Time</option>
+          <option value="recurring">Recurring</option>
+          <option value="cron">Cron</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Action</label>
+        <select name="action" id="action" onchange="updatePayload()">
+          <option value="log">Log Message</option>
+          <option value="report">Generate Report</option>
+          <option value="http">HTTP Request</option>
+          <option value="email">Send Email</option>
+          <option value="cleanup">DB Cleanup</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ONE TIME -->
+    <div class="form-group" id="field_scheduled_at">
+      <label>Scheduled At</label>
+      <input type="datetime-local" name="scheduled_at" />
+    </div>
+
+    <!-- RECURRING -->
+    <div class="form-group" id="field_interval" style="display:none">
+      <label>Interval (seconds)</label>
+      <input type="number" name="interval_seconds" placeholder="e.g. 3600 for every hour" />
+    </div>
+
+    <!-- CRON -->
+    <div class="form-group" id="field_cron" style="display:none">
+      <label>Cron Expression</label>
+      <input type="text" name="cron_expression" placeholder="e.g. 0 9 * * 1 (every Monday 9am)" />
+    </div>
+
+    <div class="form-group">
+      <label>Payload (JSON)</label>
+      <textarea name="payload" id="payload" rows="5" placeholder="{}"></textarea>
+      <small id="payload_hint" class="hint"></small>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Max Retries</label>
+        <input type="number" name="max_retries" value="3" min="0" max="10" />
+      </div>
+      <div class="form-group">
+        <label>Webhook URL (optional)</label>
+        <input type="url" name="webhook_url" placeholder="https://your-site.com/webhook" />
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <a href="{{ url_for('dashboard') }}" class="btn-secondary">Cancel</a>
+      <button type="submit" class="btn-primary">Schedule Task</button>
+    </div>
+
+  </form>
+</div>
+
+<script>
+const payloadHints = {
+  log:     '{"message": "Your log message here"}',
+  report:  '{"filename": "report.txt", "content": "Report content here"}',
+  http:    '{"url": "https://api.example.com/endpoint", "method": "GET"}',
+  email:   '{"sender": "you@gmail.com", "password": "apppassword", "recipient": "to@gmail.com", "subject": "Hello", "body": "Message"}',
+  cleanup: '{"older_than_days": 7}'
+};
+
+function updatePayload() {
+  const action = document.getElementById("action").value;
+  document.getElementById("payload").value = payloadHints[action];
+}
+
+function toggleFields() {
+  const type = document.getElementById("task_type").value;
+  document.getElementById("field_scheduled_at").style.display = type === "one_time"  ? "block" : "none";
+  document.getElementById("field_interval").style.display      = type === "recurring" ? "block" : "none";
+  document.getElementById("field_cron").style.display          = type === "cron"      ? "block" : "none";
+}
+
+// Init on load
+updatePayload();
+toggleFields();
+</script>
+
+{% endblock %}
