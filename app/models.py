@@ -1,7 +1,8 @@
-from sqlalchemy import Column, String, Integer, DateTime, Text, Enum
+from sqlalchemy import Column, String, Integer, DateTime, Text, Enum, ForeignKey
 from sqlalchemy.sql import func
 from app.database import Base
 import enum
+from sqlalchemy.orm import relationship
 
 class TaskStatus(str, enum.Enum):
     pending  = "pending"
@@ -30,6 +31,18 @@ class Task(Base):
     retry_count   = Column(Integer, default=0)
     max_retries   = Column(Integer, default=3)
     webhook_url   = Column(String(255), nullable=True)
+    user_id       = Column(Integer, ForeignKey("users.id"), nullable=True)
     result        = Column(Text, nullable=True)                     # output or error message
     created_at    = Column(DateTime, server_default=func.now())
     updated_at    = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    password_hash = Column(String(128), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    tasks = relationship("Task", backref="user")

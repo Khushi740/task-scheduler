@@ -1,15 +1,64 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
 import requests
+import os
 
 app = Flask(__name__)
 
+app.secret_key = os.environ.get("FLASK_SECRET", "dev-secret")
+
 API_BASE = "http://127.0.0.1:8000"
+
+
+# Login / Register using backend API
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    error = None
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        try:
+            res = requests.post(f"{API_BASE}/register", json={"username": username, "password": password})
+            if res.status_code == 200:
+                return redirect(url_for('login'))
+            else:
+                error = res.json().get('detail', 'Registration failed')
+        except Exception as e:
+            error = str(e)
+    return render_template('register.html', error=error)
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        try:
+            res = requests.post(f"{API_BASE}/login", json={"username": username, "password": password})
+            if res.status_code == 200:
+                user = res.json()
+                session['user'] = {'id': user['id'], 'username': user['username']}
+                return redirect(url_for('dashboard'))
+            else:
+                error = res.json().get('detail', 'Login failed')
+        except Exception as e:
+            error = str(e)
+    return render_template('login.html', error=error)
+
+
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return redirect(url_for('dashboard'))
 
 
 @app.route("/")
 def dashboard():
     try:
-        response = requests.get(f"{API_BASE}/tasks")
+        params = {}
+        if session.get('user'):
+            params['user_id'] = session['user']['id']
+        response = requests.get(f"{API_BASE}/tasks", params=params)
         tasks = response.json()
     except:
         tasks = []
@@ -41,6 +90,7 @@ def create_task():
             "cron_expression":  request.form.get("cron_expression") or None,
             "max_retries":      int(request.form.get("max_retries", 3)),
             "webhook_url":      request.form.get("webhook_url") or None,
+            "user_id":          session.get('user', {}).get('id') if session.get('user') else None,
         }
         try:
             res = requests.post(f"{API_BASE}/tasks", json=payload)

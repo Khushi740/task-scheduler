@@ -12,7 +12,11 @@
     <div class="nav-brand">⚡ Task Scheduler</div>
     <div class="nav-links">
       <a href="{{ url_for('dashboard') }}">Dashboard</a>
-      <a href="{{ url_for('create_task') }}" class="btn-nav">+ New Task</a>
+      {% if session.get('user') %}
+        <a href="{{ url_for('logout') }}" class="btn-nav">Log out</a>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="btn-nav">Login</a>
+      {% endif %}
     </div>
   </nav>
 
