@@ -1,64 +1,55 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 import requests
-import os
 
 app = Flask(__name__)
-
-app.secret_key = os.environ.get("FLASK_SECRET", "dev-secret")
+app.secret_key = "taskscheduler_secret_123"
 
 API_BASE = "http://127.0.0.1:8000"
 
-
-# Login / Register using backend API
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    error = None
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        try:
-            res = requests.post(f"{API_BASE}/register", json={"username": username, "password": password})
-            if res.status_code == 200:
-                return redirect(url_for('login'))
-            else:
-                error = res.json().get('detail', 'Registration failed')
-        except Exception as e:
-            error = str(e)
-    return render_template('register.html', error=error)
+# Simple credentials — change as you like
+VALID_USERNAME = "admin"
+VALID_PASSWORD = "admin123"
 
 
-@app.route('/login', methods=['GET', 'POST'])
+# ── AUTH DECORATOR ──
+from functools import wraps
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ── LOGIN / LOGOUT ──
+@app.route("/login", methods=["GET", "POST"])
 def login():
     error = None
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        try:
-            res = requests.post(f"{API_BASE}/login", json={"username": username, "password": password})
-            if res.status_code == 200:
-                user = res.json()
-                session['user'] = {'id': user['id'], 'username': user['username']}
-                return redirect(url_for('dashboard'))
-            else:
-                error = res.json().get('detail', 'Login failed')
-        except Exception as e:
-            error = str(e)
-    return render_template('login.html', error=error)
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        if username == VALID_USERNAME and password == VALID_PASSWORD:
+            session["logged_in"] = True
+            session["username"]  = username
+            return redirect(url_for("dashboard"))
+        else:
+            error = "Invalid username or password"
+    return render_template("login.html", error=error)
 
 
-@app.route('/logout')
+@app.route("/logout")
 def logout():
-    session.pop('user', None)
-    return redirect(url_for('dashboard'))
+    session.clear()
+    return redirect(url_for("login"))
 
 
+# ── DASHBOARD ──
 @app.route("/")
+@login_required
 def dashboard():
     try:
-        params = {}
-        if session.get('user'):
-            params['user_id'] = session['user']['id']
-        response = requests.get(f"{API_BASE}/tasks", params=params)
+        response = requests.get(f"{API_BASE}/tasks")
         tasks = response.json()
     except:
         tasks = []
@@ -77,6 +68,7 @@ def dashboard():
 
 
 @app.route("/tasks/create", methods=["GET", "POST"])
+@login_required
 def create_task():
     error = None
     if request.method == "POST":
@@ -90,7 +82,6 @@ def create_task():
             "cron_expression":  request.form.get("cron_expression") or None,
             "max_retries":      int(request.form.get("max_retries", 3)),
             "webhook_url":      request.form.get("webhook_url") or None,
-            "user_id":          session.get('user', {}).get('id') if session.get('user') else None,
         }
         try:
             res = requests.post(f"{API_BASE}/tasks", json=payload)
@@ -105,6 +96,7 @@ def create_task():
 
 
 @app.route("/tasks/<int:task_id>")
+@login_required
 def task_detail(task_id):
     try:
         res  = requests.get(f"{API_BASE}/tasks/{task_id}")
@@ -115,6 +107,7 @@ def task_detail(task_id):
 
 
 @app.route("/tasks/<int:task_id>/cancel", methods=["POST"])
+@login_required
 def cancel_task(task_id):
     requests.delete(f"{API_BASE}/tasks/{task_id}")
     return redirect(url_for("dashboard"))
